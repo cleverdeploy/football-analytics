@@ -6,11 +6,22 @@ head-to-head, per-band lineup values, named absentees, and the highest-impact su
 
 Built on QF day (11 Jul 2026, Norway v England) — defaults to that fixture.
 
+**Live: https://football.wasim.dev**
+
 ## Run
 
 ```bash
 python3 app.py            # http://localhost:8097  (0.0.0.0, port 8097)
 ```
+
+## Deploy
+
+Push to `main` → Dokploy auto-deploys (`football` project / `football-web` app at
+dokploy.cleverdeploy.com; **Build Type must stay "Dockerfile"**, container port 8000).
+Repo: github.com/cleverdeploy/football-analytics (public — Dokploy pulls via plain Git).
+DNS: Cloudflare A record `football.wasim.dev → 178.104.246.72`, DNS-only/grey cloud.
+The image ships `data/football.db`, so refresh data locally (`python3 ingest/run_all.py --force`),
+commit the DB, and push to update the live site.
 
 ## Refresh data
 

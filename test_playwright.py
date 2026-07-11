@@ -1,10 +1,11 @@
 """Playwright smoke test: load app, verify prediction renders, swap Haaland out,
-assert the number moves. Server must be running on :8097."""
+assert the number moves. Server must be running on :8097 (or set BASE=https://...)."""
+import os
 import re
 
 from playwright.sync_api import sync_playwright
 
-BASE = "http://localhost:8097"
+BASE = os.environ.get("BASE", "http://localhost:8097")
 
 
 def pct_of(page, selector):
