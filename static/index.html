@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>WC 2026 Match Predictor</title>
+<link rel="stylesheet" href="style.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚽</text></svg>">
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>⚽ WC 2026 Match Predictor</h1>
+    <div class="sub">Pick any two remaining teams, edit the XIs, get a win probability with the full working shown.
+      Elo from every international since 1872 · squads &amp; market values per player · lineups from rotowire.</div>
+  </header>
+
+  <div class="controls">
+    <label>Match</label>
+    <select id="team-A" aria-label="team A"></select>
+    <span class="vs">vs</span>
+    <select id="team-B" aria-label="team B"></select>
+    <label>Type</label>
+    <select id="mode">
+      <option value="knockout" selected>Knockout</option>
+      <option value="group">Group stage</option>
+      <option value="friendly">Friendly</option>
+    </select>
+    <label>Venue</label>
+    <select id="venue">
+      <option value="neutral" selected>Neutral</option>
+      <option value="home_a">Home — left team</option>
+      <option value="home_b">Home — right team</option>
+    </select>
+    <span class="spin" id="spin"></span>
+  </div>
+
+  <div class="teams">
+    <div class="panel">
+      <div class="head" id="head-A"></div>
+      <select id="formation-A" aria-label="formation A"></select>
+      <div class="pitch" id="pitch-A" style="margin-top:10px"></div>
+      <div class="warnings" id="warn-A"></div>
+      <div class="xi-meta" id="meta-A"></div>
+    </div>
+    <div class="panel">
+      <div class="head" id="head-B"></div>
+      <select id="formation-B" aria-label="formation B"></select>
+      <div class="pitch" id="pitch-B" style="margin-top:10px"></div>
+      <div class="warnings" id="warn-B"></div>
+      <div class="xi-meta" id="meta-B"></div>
+    </div>
+  </div>
+
+  <div class="results" id="results" style="display:none">
+    <div class="card">
+      <h3>Chance of winning</h3>
+      <div class="hero" id="hero"></div>
+      <div id="hero-bar"></div>
+      <div class="hero-note" id="hero-note"></div>
+      <div style="margin-top:16px">
+        <h3>90-minute outcome</h3>
+        <div id="wdl"></div>
+      </div>
+    </div>
+    <div class="chart-row">
+      <div class="card"><h3>Most likely scorelines</h3><div id="scorelines"></div></div>
+      <div class="card"><h3>XI value by pitch band</h3>
+        <div class="legend" id="bands-legend"></div><div id="bands"></div></div>
+    </div>
+    <div id="analysis"></div>
+  </div>
+
+  <footer>
+    Data: <a href="https://github.com/martj42/international_results">international results</a> through
+    <span id="results-through">…</span> · squads from Wikipedia (2026 FIFA World Cup squads) ·
+    market values from Transfermarkt · default lineups &amp; injury flags from
+    <a href="https://www.rotowire.com/soccer/lineups.php?league=WOC">rotowire</a>.<br>
+    Model: World-Football-Elo (importance-weighted K, goal-diff multiplier) → calibrated Poisson goal map;
+    lineup edits move team Elo by market-value log-ratio vs the strongest available XI.
+    Knockout draws resolve through extra time (⅓ rates) and 50/50 penalties.
+  </footer>
+</div>
+
+<div class="overlay" id="overlay" style="display:none"><div class="picker" id="picker-body"></div></div>
+<div id="tooltip"></div>
+<script src="app.js"></script>
+</body>
+</html>
