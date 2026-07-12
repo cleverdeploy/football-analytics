@@ -38,6 +38,8 @@ select, button.primary {
   border-radius: 8px; padding: 7px 10px; font-size: 14px; font-family: inherit;
 }
 select:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+button.primary { cursor: pointer; display: inline-flex; align-items: center; gap: 6px; margin-left: auto; }
+button.primary:hover { border-color: var(--accent); color: var(--accent); }
 .vs { color: var(--muted); font-weight: 700; padding: 0 2px; }
 
 .teams { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }

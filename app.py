@@ -1,9 +1,10 @@
-"""WC 2026 match predictor — Flask API + static UI (port 8097)."""
+"""Football Analytics — WC 2026 match predictor. Flask API + static UI (port 8097)."""
 import json
 import os
+import re
 import sys
 
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify, redirect, request
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from db import get_conn, get_meta
@@ -12,16 +13,47 @@ from model.config import FORMATIONS
 from model.strength import best_xi
 from util import band
 
-app = Flask(__name__, static_folder="static", static_url_path="")
+app = Flask(__name__, static_folder="static", static_url_path="/static")
 
 FLAGS = {"England": "\U0001F3F4\U000E0067\U000E0062\U000E0065\U000E006E\U000E0067\U000E007F",
          "Norway": "🇳🇴", "France": "🇫🇷", "Spain": "🇪🇸",
          "Argentina": "🇦🇷", "Switzerland": "🇨🇭"}
 
+APP_NAME = "Football Analytics"
+
+
+def slugify(name):
+    return re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-")
+
+
+def team_slugs():
+    conn = get_conn()
+    names = get_meta(conn, "remaining_teams") or []
+    conn.close()
+    return {slugify(n): n for n in names}
+
+
+def render_index(title):
+    with open(os.path.join(app.static_folder, "index.html")) as f:
+        return f.read().replace("<title>Football Analytics</title>",
+                                f"<title>{title}</title>")
+
 
 @app.route("/")
 def index():
-    return app.send_static_file("index.html")
+    return render_index(APP_NAME)
+
+
+@app.route("/<slug>")
+def match_permalink(slug):
+    """Permalink like /england-vs-norway — serves the app with a matchup title."""
+    m = re.fullmatch(r"([a-z0-9-]+)-vs-([a-z0-9-]+)", slug)
+    if m:
+        slugs = team_slugs()
+        a, b = slugs.get(m.group(1)), slugs.get(m.group(2))
+        if a and b and a != b:
+            return render_index(f"{a} vs {b} — {APP_NAME}")
+    return redirect("/")
 
 
 @app.get("/api/teams")
@@ -34,8 +66,9 @@ def teams():
         rank = conn.execute("SELECT COUNT(*) + 1 FROM elo_ratings WHERE rating > ?",
                             (r["rating"],)).fetchone()[0]
         lu = conn.execute("SELECT formation, fetched FROM lineups WHERE team = ?", (name,)).fetchone()
-        out.append({"name": name, "flag": FLAGS.get(name, "⚽"), "rating": round(r["rating"]),
-                    "rank": rank, "formation": lu["formation"] if lu else None,
+        out.append({"name": name, "slug": slugify(name), "flag": FLAGS.get(name, "⚽"),
+                    "rating": round(r["rating"]), "rank": rank,
+                    "formation": lu["formation"] if lu else None,
                     "lineup_fetched": lu["fetched"] if lu else None})
     resp = {"teams": out, "formations": FORMATIONS,
             "results_through": conn.execute("SELECT MAX(date) FROM matches").fetchone()[0]}

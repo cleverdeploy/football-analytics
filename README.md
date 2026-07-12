@@ -1,10 +1,16 @@
-# WC 2026 Match Predictor
+# Football Analytics
 
 Pick any two teams still in the 2026 World Cup, edit either starting XI on a pitch view,
 and get a win probability with a full data-backed justification — Elo baseline, form,
 head-to-head, per-band lineup values, named absentees, and the highest-impact substitutions.
 
 Built on QF day (11 Jul 2026, Norway v England) — defaults to that fixture.
+
+**Permalinks:** every selection has a shareable URL — `/england-vs-norway`,
+`/france-vs-spain`, etc. Lineup edits, formation, mode, and venue are encoded as query
+params (`?fb=4-4-2&xb=<ids>&mode=group`), kept in sync with the address bar as you edit;
+the Share button uses the native share sheet (clipboard fallback). Unknown slugs redirect
+to `/`; the server injects a matchup `<title>` for link previews.
 
 **Live: https://football.wasim.dev**
 

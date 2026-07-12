@@ -27,6 +27,7 @@ async function init() {
   const meta = await (await fetch("/api/teams")).json();
   state.formations = meta.formations;
   state.teamsMeta = Object.fromEntries(meta.teams.map((t) => [t.name, t]));
+  state.bySlug = Object.fromEntries(meta.teams.map((t) => [t.slug, t.name]));
   $("#results-through").textContent = meta.results_through;
   for (const key of ["A", "B"]) {
     const sel = $(`#team-${key}`);
@@ -34,11 +35,28 @@ async function init() {
       `<option value="${esc(t.name)}">${t.flag} ${esc(t.name)}</option>`).join("");
     sel.addEventListener("change", () => onTeamChange(key, sel.value));
   }
-  $("#team-A").value = "England";
-  $("#team-B").value = "Norway";
+
+  // permalink: /england-vs-norway?fa=4-4-2&xa=1.2.3...&mode=group&venue=home_a
+  let initA = "England", initB = "Norway";
+  const m = location.pathname.match(/^\/([a-z0-9-]+)-vs-([a-z0-9-]+)$/);
+  if (m && state.bySlug[m[1]] && state.bySlug[m[2]] && m[1] !== m[2]) {
+    initA = state.bySlug[m[1]];
+    initB = state.bySlug[m[2]];
+  }
+  const q = new URLSearchParams(location.search);
+  if (["knockout", "group", "friendly"].includes(q.get("mode"))) state.mode = q.get("mode");
+  if (["neutral", "home_a", "home_b"].includes(q.get("venue"))) state.venue = q.get("venue");
+  $("#mode").value = state.mode;
+  $("#venue").value = state.venue;
+  $("#team-A").value = initA;
+  $("#team-B").value = initB;
   $("#mode").addEventListener("change", (e) => { state.mode = e.target.value; schedulePredict(); });
   $("#venue").addEventListener("change", (e) => { state.venue = e.target.value; schedulePredict(); });
-  await Promise.all([loadSide("A", "England"), loadSide("B", "Norway")]);
+  $("#share").addEventListener("click", sharePermalink);
+  await Promise.all([
+    loadSide("A", initA, { formation: q.get("fa"), xiIds: q.get("xa") }),
+    loadSide("B", initB, { formation: q.get("fb"), xiIds: q.get("xb") }),
+  ]);
   schedulePredict();
 }
 
@@ -53,17 +71,53 @@ function onTeamChange(key, name) {
   loadSide(key, name).then(schedulePredict);
 }
 
-async function loadSide(key, name) {
+async function loadSide(key, name, override) {
   const d = await (await fetch(`/api/team/${encodeURIComponent(name)}`)).json();
-  state.sides[key] = {
+  const side = {
     team: name, flag: d.flag,
     formation: d.default.formation,
     xi: d.default.xi.map((e) => ({ slot: e.slot, player_id: e.player_id })),
     players: new Map(d.players.map((p) => [p.id, p])),
     bestIds: new Set(d.best_xi_ids),
     fetched: d.default.fetched,
+    defaultFormation: d.default.formation,
+    defaultIds: d.default.xi.map((e) => e.player_id).join("."),
   };
+  if (override) applyOverride(side, override);
+  state.sides[key] = side;
   renderPanel(key);
+}
+
+/* restore formation/XI from permalink params; fall back to default on anything invalid */
+function applyOverride(side, override) {
+  let slots = side.xi.map((e) => e.slot);
+  if (override.formation && state.formations[override.formation]) {
+    slots = state.formations[override.formation];
+    side.formation = override.formation;
+  }
+  if (override.xiIds) {
+    const ids = override.xiIds.split(".").map(Number);
+    const valid = ids.length === 11 && new Set(ids).size === 11 &&
+      ids.every((id) => side.players.has(id));
+    if (valid) side.xi = slots.map((slot, i) => ({ slot, player_id: ids[i] }));
+    else if (side.formation !== side.defaultFormation) side.formation = side.defaultFormation;
+  } else if (side.formation !== side.defaultFormation) {
+    setFormationSlots(side, slots);   // formation given without ids: refill from default XI
+  }
+}
+
+function setFormationSlots(side, newSlots) {
+  const pool = {};
+  for (const e of side.xi) (pool[band(e.slot)] = pool[band(e.slot)] || []).push(e.player_id);
+  const xi = newSlots.map((slot) => {
+    const b = band(slot);
+    if (pool[b] && pool[b].length) return { slot, player_id: pool[b].shift() };
+    return { slot, player_id: null };
+  });
+  const leftovers = Object.values(pool).flat()
+    .sort((x, y) => (side.players.get(y).value_eur || 0) - (side.players.get(x).value_eur || 0));
+  for (const e of xi) if (e.player_id === null) e.player_id = leftovers.shift();
+  side.xi = xi;
 }
 
 function formationSlots(side) {
@@ -74,21 +128,50 @@ function setFormation(key, name) {
   const side = state.sides[key];
   const newSlots = state.formations[name];
   if (!newSlots) return;
-  const pool = { };                        // band -> [player_id ...] from current XI
-  for (const e of side.xi) (pool[band(e.slot)] = pool[band(e.slot)] || []).push(e.player_id);
-  const leftovers = [];
-  const xi = newSlots.map((slot) => {
-    const b = band(slot);
-    if (pool[b] && pool[b].length) return { slot, player_id: pool[b].shift() };
-    return { slot, player_id: null };
-  });
-  for (const b of Object.keys(pool)) leftovers.push(...pool[b]);
-  leftovers.sort((x, y) => (side.players.get(y).value_eur || 0) - (side.players.get(x).value_eur || 0));
-  for (const e of xi) if (e.player_id === null) e.player_id = leftovers.shift();
+  setFormationSlots(side, newSlots);
   side.formation = name;
-  side.xi = xi;
   renderPanel(key);
   schedulePredict();
+}
+
+/* ---------- permalinks ---------- */
+
+function buildPermalink() {
+  const params = new URLSearchParams();
+  if (state.mode !== "knockout") params.set("mode", state.mode);
+  if (state.venue !== "neutral") params.set("venue", state.venue);
+  for (const [k, suffix] of [["A", "a"], ["B", "b"]]) {
+    const side = state.sides[k];
+    const ids = side.xi.map((e) => e.player_id).join(".");
+    if (side.formation !== side.defaultFormation) {
+      params.set("f" + suffix, side.formation);
+      params.set("x" + suffix, ids);
+    } else if (ids !== side.defaultIds) {
+      params.set("x" + suffix, ids);
+    }
+  }
+  const slugA = state.teamsMeta[state.sides.A.team].slug;
+  const slugB = state.teamsMeta[state.sides.B.team].slug;
+  const qs = params.toString();
+  return `/${slugA}-vs-${slugB}${qs ? "?" + qs : ""}`;
+}
+
+function syncUrl() {
+  if (!state.sides.A || !state.sides.B) return;
+  history.replaceState(null, "", buildPermalink());
+  document.title = `${state.sides.A.team} vs ${state.sides.B.team} — Football Analytics`;
+}
+
+async function sharePermalink() {
+  const url = location.origin + buildPermalink();
+  const title = document.title;
+  try {
+    if (navigator.share) { await navigator.share({ title, url }); return; }
+    await navigator.clipboard.writeText(url);
+    const btn = $("#share"), old = btn.innerHTML;
+    btn.innerHTML = "✓ Link copied";
+    setTimeout(() => { btn.innerHTML = old; }, 1600);
+  } catch (e) { /* share sheet dismissed */ }
 }
 
 function renderPanel(key) {
@@ -175,6 +258,7 @@ function choosePlayer(pid) {
 function closePicker() { $("#overlay").style.display = "none"; state.picker = null; }
 
 function schedulePredict() {
+  syncUrl();
   clearTimeout(state.timer);
   $("#spin").textContent = "computing…";
   state.timer = setTimeout(runPredict, 300);

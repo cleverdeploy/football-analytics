@@ -3,15 +3,15 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>WC 2026 Match Predictor</title>
-<link rel="stylesheet" href="style.css">
+<title>Football Analytics</title>
+<link rel="stylesheet" href="/static/style.css">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚽</text></svg>">
 </head>
 <body>
 <div class="wrap">
   <header>
-    <h1>⚽ WC 2026 Match Predictor</h1>
-    <div class="sub">Pick any two remaining teams, edit the XIs, get a win probability with the full working shown.
+    <h1>⚽ Football Analytics</h1>
+    <div class="sub">Pick any two remaining WC 2026 teams, edit the XIs, get a win probability with the full working shown.
       Elo from every international since 1872 · squads &amp; market values per player · lineups from rotowire.</div>
   </header>
 
@@ -32,6 +32,9 @@
       <option value="home_a">Home — left team</option>
       <option value="home_b">Home — right team</option>
     </select>
+    <button class="primary" id="share" title="Share a permalink to this exact selection">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="M8.6 10.7l6.8-4.4M8.6 13.3l6.8 4.4"/></svg>
+      Share</button>
     <span class="spin" id="spin"></span>
   </div>
 
@@ -84,6 +87,6 @@
 
 <div class="overlay" id="overlay" style="display:none"><div class="picker" id="picker-body"></div></div>
 <div id="tooltip"></div>
-<script src="app.js"></script>
+<script src="/static/app.js"></script>
 </body>
 </html>
